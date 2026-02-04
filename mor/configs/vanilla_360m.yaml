@@ -1,0 +1,88 @@
+# Vanilla Transformer 360M Configuration
+# Standard transformer for baseline comparison with MoR
+# No parameter sharing or routing
+#
+# Author: Ahmed Taha | ahmedtaha.io
+
+model:
+  # Architecture
+  vocab_size: 50257  # GPT-2 tokenizer
+  hidden_dim: 1024
+  num_attention_heads: 16
+  num_kv_heads: 4  # GQA: 4:1 ratio
+  head_dim: 64
+  ffn_dim: 2816  # ~2.75x hidden_dim (SwiGLU)
+  max_seq_len: 2048
+
+  # Layer configuration (no sharing - uses "cycle" strategy with num_recursion_steps=1)
+  num_shared_layers: 24  # All layers, no sharing
+  num_recursion_steps: 1  # No recursion (single pass)
+  sharing_strategy: "cycle"  # No unique first/last layers
+
+  # Normalization and regularization
+  rms_norm_eps: 1.0e-6
+  dropout: 0.0
+  attention_dropout: 0.0
+
+  # Router configuration (effectively disabled with num_recursion_steps=1)
+  router_type: "expert_choice"  # Required, but inactive with 1 recursion step
+  router_architecture: "linear"
+  router_activation: "sigmoid"
+  router_aux_loss_coeff: 0.0
+  router_z_loss_coeff: 0.0
+  capacity_ratio: 1.0  # All tokens selected
+  router_alpha: 1.0
+
+  # Embeddings
+  tie_word_embeddings: true
+  rope_theta: 10000.0
+  rope_scaling: null
+
+  # Initialization
+  initializer_range: 0.02
+
+  # KV cache strategy
+  kv_cache_strategy: "selective"
+
+training:
+  # Optimization
+  optimizer: "adamw"
+  learning_rate: 2.0e-4
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  eps: 1.0e-8
+
+  # LR schedule
+  lr_scheduler: "cosine"
+  warmup_steps: 2000
+  min_lr_ratio: 0.1
+
+  # Batch size
+  batch_size: 16
+  gradient_accumulation_steps: 8
+  max_grad_norm: 1.0
+
+  # Training steps
+  max_steps: 150000
+  eval_interval: 1000
+  save_interval: 5000
+  log_interval: 100
+
+  # Mixed precision
+  mixed_precision: "bf16"
+
+  # Data
+  max_seq_len: 2048
+  num_workers: 4
+
+  # Reproducibility
+  seed: 42
+
+data:
+  # Dataset configuration
+  dataset: "openwebtext"
+  tokenizer: "gpt2"
+  preprocessing:
+    truncation: true
+    padding: false
