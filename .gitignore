@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+2507.10524v3.pdf

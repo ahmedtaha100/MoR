@@ -1,0 +1,61 @@
+model:
+  vocab_size: 49152
+  hidden_dim: 1024
+  num_attention_heads: 16
+  num_kv_heads: 4
+  head_dim: 64
+  ffn_dim: 2816
+  max_seq_len: 2048
+  num_shared_layers: 24
+  num_recursion_steps: 1
+  sharing_strategy: "cycle"
+  rms_norm_eps: 1.0e-6
+  dropout: 0.0
+  attention_dropout: 0.0
+  router_type: "expert_choice"
+  router_architecture: "linear"
+  router_activation: "sigmoid"
+  router_aux_loss_coeff: 0.0
+  router_z_loss_coeff: 0.0
+  capacity_ratio: 1.0
+  router_alpha: 1.0
+  tie_word_embeddings: true
+  rope_theta: 10000.0
+  rope_scaling: null
+  initializer_range: 0.02
+  kv_cache_strategy: "selective"
+
+training:
+  optimizer: "adamw"
+  learning_rate: 2.0e-4
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  eps: 1.0e-8
+  lr_scheduler: "cosine"
+  warmup_steps: 2000
+  min_lr_ratio: 0.1
+  batch_size: 16
+  gradient_accumulation_steps: 8
+  max_grad_norm: 1.0
+  max_steps: 150000
+  eval_interval: 1000
+  save_interval: 5000
+  log_interval: 100
+  mixed_precision: "bf16"
+  max_seq_len: 2048
+  num_workers: 4
+  seed: 42
+
+data:
+  dataset_name: "HuggingFaceFW/fineweb-edu"
+  dataset_config: null
+  train_split: "train"
+  eval_split: "validation"
+  tokenizer: "HuggingFaceH4/SmolLM-360M"
+  text_field: "text"
+  streaming: true
+  shuffle_buffer: 10000
+  max_train_samples: null
+  max_eval_samples: null
+  num_workers: 0
