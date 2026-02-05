@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument("--config", type=str, default=None)
     parser.add_argument("--checkpoint", type=str, default=None)
     parser.add_argument("--tokenizer", type=str, default="HuggingFaceH4/SmolLM-135M")
-    parser.add_argument("--tasks", type=str, default="lambada_openai,hellaswag,piqa,winogrande,arc_easy,arc_challenge,mmlu")
+    parser.add_argument("--tasks", type=str, default="hellaswag,piqa,winogrande,arc_easy,arc_challenge,mmlu")
     parser.add_argument("--num_fewshot", type=int, default=None)
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--device", type=str, default=None)
