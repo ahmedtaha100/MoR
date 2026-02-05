@@ -438,6 +438,8 @@ class MoRAttention(nn.Module):
 
         shared_kv: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
 
+        merge_shared_kv: bool = False,
+
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[KVCache], Optional[Tuple[torch.Tensor, torch.Tensor]]]:
 
         
@@ -506,7 +508,19 @@ class MoRAttention(nn.Module):
 
         if shared_kv is not None:
 
-            key_states, value_states = shared_kv
+            if merge_shared_kv and active_mask is not None:
+
+                shared_key, shared_value = shared_kv
+
+                mask = active_mask.unsqueeze(1).unsqueeze(-1)
+
+                key_states = torch.where(mask, key_states, shared_key)
+
+                value_states = torch.where(mask, value_states, shared_value)
+
+            else:
+
+                key_states, value_states = shared_kv
 
         elif past_key_value is not None:
 

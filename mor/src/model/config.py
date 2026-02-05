@@ -27,7 +27,7 @@ class MoRConfig:
     token_choice_balance_mode: Literal["loss", "loss_free", "none"] = "loss"
     token_choice_bias_update_rate: float = 0.01
     capacity_warmup_steps: int = 0
-    kv_cache_strategy: Literal["selective", "shared"] = "selective"
+    kv_cache_strategy: Literal["selective", "shared", "hybrid"] = "selective"
     sharing_strategy: Literal["middle_cycle", "cycle", "sequence", "middle_sequence"] = "middle_cycle"
     dropout: float = 0.0
     attention_dropout: float = 0.0

@@ -230,6 +230,8 @@ class RecursiveBlock(nn.Module):
 
         is_shared_mode = self.kv_cache_strategy == "shared"
 
+        is_hybrid_mode = self.kv_cache_strategy == "hybrid"
+
 
 
         for r in range(self.num_recursions):
@@ -264,6 +266,10 @@ class RecursiveBlock(nn.Module):
 
             is_shared_reuse = is_shared_mode and r > 0
 
+            is_hybrid_first = is_hybrid_mode and r == 0
+
+            is_hybrid_reuse = is_hybrid_mode and r > 0
+
 
 
             if is_shared_reuse and first_recursion_kv is not None:
@@ -278,13 +284,15 @@ class RecursiveBlock(nn.Module):
 
             shared_kvs_for_block = None
 
-            if is_shared_reuse and first_recursion_computed_kvs is not None:
+            if (is_shared_reuse or is_hybrid_reuse) and first_recursion_computed_kvs is not None:
 
                 shared_kvs_for_block = first_recursion_computed_kvs
 
 
 
-            if is_shared_first:
+            merge_shared_kv = False
+
+            if is_shared_first or is_hybrid_first:
 
                 block_active_mask = None
 
@@ -299,6 +307,16 @@ class RecursiveBlock(nn.Module):
                 apply_kv_mask = False
 
                 use_selective = False
+
+            elif is_hybrid_reuse:
+
+                block_active_mask = selected_mask
+
+                apply_kv_mask = False
+
+                use_selective = False
+
+                merge_shared_kv = True
 
             elif is_selective_mode:
 
@@ -356,6 +374,7 @@ class RecursiveBlock(nn.Module):
 
                 shared_kvs=shared_kvs_for_block,
                 layer_indices=layer_indices,
+                merge_shared_kv=merge_shared_kv,
 
             )
 
@@ -529,6 +548,8 @@ class RecursiveBlock(nn.Module):
 
         is_shared_mode = self.kv_cache_strategy == "shared"
 
+        is_hybrid_mode = self.kv_cache_strategy == "hybrid"
+
 
 
         base_active_mask = self._derive_base_active_mask(
@@ -555,6 +576,10 @@ class RecursiveBlock(nn.Module):
 
             is_shared_reuse = is_shared_mode and r > 0
 
+            is_hybrid_first = is_hybrid_mode and r == 0
+
+            is_hybrid_reuse = is_hybrid_mode and r > 0
+
 
 
             if is_shared_reuse and first_recursion_kv is not None:
@@ -569,13 +594,15 @@ class RecursiveBlock(nn.Module):
 
             shared_kvs_for_block = None
 
-            if is_shared_reuse and first_recursion_computed_kvs is not None:
+            if (is_shared_reuse or is_hybrid_reuse) and first_recursion_computed_kvs is not None:
 
                 shared_kvs_for_block = first_recursion_computed_kvs
 
 
 
-            if is_shared_first:
+            merge_shared_kv = False
+
+            if is_shared_first or is_hybrid_first:
 
                 block_active_mask = None
 
@@ -590,6 +617,16 @@ class RecursiveBlock(nn.Module):
                 apply_kv_mask = False
 
                 use_selective = False
+
+            elif is_hybrid_reuse:
+
+                block_active_mask = active_mask
+
+                apply_kv_mask = False
+
+                use_selective = False
+
+                merge_shared_kv = True
 
             elif is_selective_mode:
 
@@ -647,6 +684,7 @@ class RecursiveBlock(nn.Module):
 
                 shared_kvs=shared_kvs_for_block,
                 layer_indices=layer_indices,
+                merge_shared_kv=merge_shared_kv,
 
             )
 

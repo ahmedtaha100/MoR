@@ -82,6 +82,8 @@ class TransformerBlock(nn.Module):
 
         shared_kv: Optional[Tuple] = None,
 
+        merge_shared_kv: bool = False,
+
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[KVCache], Optional[Tuple]]:
 
         residual = hidden_states
@@ -119,6 +121,8 @@ class TransformerBlock(nn.Module):
             use_selective_cache=use_selective_cache,
 
             shared_kv=shared_kv,
+
+            merge_shared_kv=merge_shared_kv,
 
         )
 
@@ -205,6 +209,8 @@ class SharedTransformerBlock(nn.Module):
         shared_kvs: Optional[List[Tuple]] = None,
         layer_indices: Optional[List[int]] = None,
 
+        merge_shared_kv: bool = False,
+
     ) -> Tuple[torch.Tensor, Optional[list], Optional[List[KVCache]], Optional[List[Tuple]]]:
 
         from .attention import KVCache, SelectiveKVCache
@@ -288,6 +294,8 @@ class SharedTransformerBlock(nn.Module):
                 use_selective_cache=use_selective_cache,
 
                 shared_kv=layer_shared_kv,
+
+                merge_shared_kv=merge_shared_kv,
 
             )
 
