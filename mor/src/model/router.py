@@ -75,16 +75,18 @@ class ExpertChoiceRouter(nn.Module):
 
         num_active = active_mask.sum(dim=-1)
 
-        k_per_batch = (self.capacity * num_active).long().clamp(min=1)
+        k_per_batch = (self.capacity * num_active).long()
 
         selected_mask = torch.zeros_like(router_scores, dtype=torch.bool)
 
         for b in range(batch_size):
             k = k_per_batch[b].item()
-            if k > 0:
-                batch_scores = masked_scores[b]
-                _, top_indices = torch.topk(batch_scores, k=min(k, num_active[b].item()))
-                selected_mask[b, top_indices] = True
+            num_active_b = num_active[b].item()
+            if num_active_b == 0 or k <= 0:
+                continue
+            batch_scores = masked_scores[b]
+            _, top_indices = torch.topk(batch_scores, k=min(k, num_active_b))
+            selected_mask[b, top_indices] = True
 
         router_weights = router_scores * selected_mask.float()
 

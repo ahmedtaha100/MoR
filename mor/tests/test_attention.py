@@ -3,7 +3,9 @@ import torch
 import math
 
 import sys
-sys.path.insert(0, '/Users/ahmedtaeha/Desktop/General/GitHub/MoR/mor/src')
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'src'))
 
 from model.config import MoRConfig, get_mor_135m_config
 from model.attention import (

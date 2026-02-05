@@ -36,6 +36,8 @@ class RecursiveBlock(nn.Module):
             return torch.ones(batch_size, seq_len, dtype=torch.bool, device=device)
 
         attn = attention_mask.squeeze(1)
+        if attn.shape[0] == 1 and batch_size > 1:
+            attn = attn.expand(batch_size, -1, -1).contiguous()
         kv_len = attn.shape[-1]
         pos_clamped = position_ids.clamp(min=0, max=kv_len - 1)
         diag_vals = attn.gather(2, pos_clamped.unsqueeze(-1)).squeeze(-1)
