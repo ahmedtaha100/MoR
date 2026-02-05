@@ -1328,8 +1328,7 @@ class TestNewFeatures:
 
                 for layer_cache in layer_caches:
 
-                    assert layer_cache.get_seq_len() == prompt_len + 1,
-                        f"Cache seq_len should be {prompt_len + 1}, got {layer_cache.get_seq_len()}"
+                    assert layer_cache.get_seq_len() == prompt_len + 1
 
 
 
@@ -1375,8 +1374,7 @@ class TestNewFeatures:
 
             for layer_cache in layer_caches:
 
-                assert isinstance(layer_cache, SelectiveKVCache),
-                    f"Expected SelectiveKVCache, got {type(layer_cache)}"
+                assert isinstance(layer_cache, SelectiveKVCache)
 
 
 
@@ -1386,8 +1384,7 @@ class TestNewFeatures:
 
 
 
-                assert cached_len <= total_len,
-                    f"Cached len {cached_len} should be <= total len {total_len}"
+                assert cached_len <= total_len
 
 
 
@@ -1540,4 +1537,3 @@ class TestNewFeatures:
 if __name__ == "__main__":
 
     pytest.main([__file__, "-v"])
-

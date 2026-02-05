@@ -232,7 +232,7 @@ class TestTransformerBlock:
 
 
 
-        out1, attn_weights, kv_out = block(
+        out1, attn_weights, kv_out, _ = block(
 
             hidden1,
 
@@ -264,7 +264,7 @@ class TestTransformerBlock:
 
 
 
-        out2, _, kv2 = block(
+        out2, _, kv2, _ = block(
 
             hidden2,
 
@@ -499,4 +499,3 @@ class TestBlockComponents:
 if __name__ == "__main__":
 
     pytest.main([__file__, "-v"])
-

@@ -370,8 +370,7 @@ class MoRAttention(nn.Module):
 
 
 
-        assert self.hidden_dim == self.num_heads * self.head_dim,
-            f"hidden_dim ({self.hidden_dim}) must equal num_heads ({self.num_heads}) * head_dim ({self.head_dim})"
+        assert self.hidden_dim == self.num_heads * self.head_dim
 
 
 
@@ -766,4 +765,3 @@ def create_attention_mask(
 
 
     return expanded_mask
-
