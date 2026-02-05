@@ -88,7 +88,11 @@ python scripts/train.py \
 ### Using the Model
 
 ```python
-from src.model import MoRConfig, MoRForCausalLM, get_mor_135m_config
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path("mor/src").resolve()))
+from model.config import MoRConfig, get_mor_135m_config
+from model.mor_model import MoRForCausalLM
 
 # Load configuration
 config = get_mor_135m_config()
@@ -111,7 +115,10 @@ generated = model.generate(input_ids[:, :10], max_new_tokens=50)
 ### Analyzing Routing
 
 ```python
-from src.evaluation import get_routing_heatmap, plot_routing_heatmap
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path("mor/src").resolve()))
+from evaluation import get_routing_heatmap, plot_routing_heatmap
 
 # Get routing information
 depths, routing_info = get_routing_heatmap(model, input_ids)

@@ -77,11 +77,13 @@ class MoRConfig:
     def from_yaml(cls, path: str) -> "MoRConfig":
         with open(path, "r") as f:
             config_dict = yaml.safe_load(f)
+        if isinstance(config_dict, dict) and "model" in config_dict:
+            config_dict = config_dict["model"]
         return cls(**config_dict)
 
     def to_yaml(self, path: str) -> None:
         with open(path, "w") as f:
-            yaml.dump(self.__dict__, f, default_flow_style=False)
+            yaml.dump({"model": self.to_dict()}, f, default_flow_style=False)
 
     def to_dict(self) -> dict:
         return {k: v for k, v in self.__dict__.items()}
