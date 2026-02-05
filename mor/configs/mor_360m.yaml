@@ -1,11 +1,11 @@
 model:
-  hidden_dim: 960
-  num_attention_heads: 15
-  num_kv_heads: 5
+  hidden_dim: 1024
+  num_attention_heads: 16
+  num_kv_heads: 4
   head_dim: 64
-  num_shared_layers: 10
+  num_shared_layers: 12
   num_recursion_steps: 3
-  ffn_dim: 2560
+  ffn_dim: 2816
   ffn_hidden_act: "silu"
   vocab_size: 49152
   max_seq_len: 2048
@@ -37,9 +37,27 @@ training:
   max_steps: 100000
   min_lr_ratio: 0.1
   lr_scheduler: "trapezoid"
-  warmup_ratio: 0.02
+  warmup_ratio: 0.05
   cooldown_ratio: 0.2
   batch_size: 32
   gradient_accumulation_steps: 4
   max_grad_norm: 1.0
   mixed_precision: "bf16"
+  log_interval: 100
+  eval_interval: 1000
+  save_interval: 5000
+  output_dir: "outputs"
+  seed: 42
+
+data:
+  dataset_name: "HuggingFaceFW/fineweb-edu"
+  dataset_config: null
+  train_split: "train"
+  eval_split: "validation"
+  tokenizer: "HuggingFaceH4/SmolLM-360M"
+  text_field: "text"
+  streaming: true
+  shuffle_buffer: 10000
+  max_train_samples: null
+  max_eval_samples: null
+  num_workers: 0
