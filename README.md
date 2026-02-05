@@ -2,7 +2,7 @@
 
 A PyTorch implementation of the Mixture-of-Recursions architecture from the NeurIPS 2025 paper:
 
-**"Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation"**
+**[Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](./2507.10524v3.pdf)**
 
 ## Overview
 
@@ -184,7 +184,7 @@ python -m pytest tests/test_router.py -v
 
 ## References
 
-- Paper: "Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation"
+- Paper (PDF in this repo): [Mixture-of-Recursions: Learning Dynamic Recursive Depths for Adaptive Token-Level Computation](./2507.10524v3.pdf)
 - [GLU Variants Improve Transformer](https://arxiv.org/abs/2002.05202) (SwiGLU)
 - [RoFormer](https://arxiv.org/abs/2104.09864) (RoPE)
 
