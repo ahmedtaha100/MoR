@@ -66,13 +66,19 @@ class RecursiveBlock(nn.Module):
 
 
 
-        if attention_mask.dim() != 4:
+        if attention_mask.dim() == 4:
+
+            attn = attention_mask[:, 0]
+
+        elif attention_mask.dim() == 3:
+
+            attn = attention_mask
+
+        else:
 
             return torch.ones(batch_size, seq_len, dtype=torch.bool, device=device)
 
 
-
-        attn = attention_mask.squeeze(1)
 
         if attn.shape[0] == 1 and batch_size > 1:
 

@@ -152,7 +152,7 @@ class ExpertChoiceRouter(nn.Module):
 
 
 
-        k_per_batch = (self.capacity * num_active).long()
+        k_per_batch = self.capacity * num_active
 
 
 
@@ -162,17 +162,25 @@ class ExpertChoiceRouter(nn.Module):
 
         for b in range(batch_size):
 
-            k = k_per_batch[b].item()
+            num_active_b = int(num_active[b].item())
 
-            num_active_b = num_active[b].item()
-
-            if num_active_b == 0 or k <= 0:
+            if num_active_b == 0:
 
                 continue
 
+            k = int(k_per_batch[b].item())
+
+            if k < 1:
+
+                k = 1
+
+            if k > num_active_b:
+
+                k = num_active_b
+
             batch_scores = masked_scores[b]
 
-            _, top_indices = torch.topk(batch_scores, k=min(k, num_active_b))
+            _, top_indices = torch.topk(batch_scores, k=k)
 
             selected_mask[b, top_indices] = True
 

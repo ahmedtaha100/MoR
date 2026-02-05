@@ -65,7 +65,10 @@ class MoRConfig:
         return self.sharing_strategy.startswith("middle")
 
     def get_capacity_schedule(self) -> list[float]:
-        return [(self.num_recursion_steps - i) / self.num_recursion_steps for i in range(self.num_recursion_steps)]
+        return [
+            self.capacity_ratio * (self.num_recursion_steps - i) / self.num_recursion_steps
+            for i in range(self.num_recursion_steps)
+        ]
 
     @classmethod
     def from_yaml(cls, path: str) -> "MoRConfig":
