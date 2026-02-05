@@ -203,6 +203,7 @@ class SharedTransformerBlock(nn.Module):
         create_cache_fn=None,
 
         shared_kvs: Optional[List[Tuple]] = None,
+        layer_indices: Optional[List[int]] = None,
 
     ) -> Tuple[torch.Tensor, Optional[list], Optional[List[KVCache]], Optional[List[Tuple]]]:
 
@@ -222,7 +223,11 @@ class SharedTransformerBlock(nn.Module):
 
 
 
-        for i, layer in enumerate(self.layers):
+        if layer_indices is None:
+            layer_indices = list(range(len(self.layers)))
+
+        for i, layer_pos in enumerate(layer_indices):
+            layer = self.layers[layer_pos]
 
             if past_key_values is not None and i < len(past_key_values):
 
@@ -327,4 +332,3 @@ class SharedTransformerBlock(nn.Module):
     def get_num_layers(self) -> int:
 
         return len(self.layers)
-

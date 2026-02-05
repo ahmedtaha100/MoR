@@ -4,7 +4,7 @@ import math
 
 import time
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from dataclasses import dataclass
 
@@ -73,6 +73,7 @@ class TrainingConfig:
     eval_interval: int = 1000
 
     save_interval: int = 5000
+    save_steps: Optional[List[int]] = None
 
 
 
@@ -81,6 +82,7 @@ class TrainingConfig:
     wandb_project: Optional[str] = None
 
     wandb_run_name: Optional[str] = None
+    resume_from_checkpoint: Optional[str] = None
 
 
 
@@ -147,6 +149,12 @@ class MoRTrainer:
         if config.wandb_project:
 
             self._setup_wandb()
+
+        self.save_steps = set(config.save_steps) if config.save_steps else None
+
+        if config.resume_from_checkpoint:
+
+            self.load_checkpoint(config.resume_from_checkpoint)
 
 
 
@@ -460,6 +468,18 @@ class MoRTrainer:
 
                     )
 
+                    router_metrics = {}
+
+                    if hasattr(outputs, "routing_info") and outputs.routing_info is not None:
+
+                        if hasattr(self.model, "model") and hasattr(self.model.model, "recursive_block"):
+
+                            router_obj = self.model.model.recursive_block.router
+
+                            if hasattr(router_obj, "compute_metrics"):
+
+                                router_metrics = router_obj.compute_metrics(outputs.routing_info)
+
 
 
                     print(
@@ -486,25 +506,31 @@ class MoRTrainer:
 
 
 
-                        wandb.log(
+                        log_data = {
 
-                            {
+                            "train/loss": avg_loss,
 
-                                "train/loss": avg_loss,
+                            "train/aux_loss": avg_aux_loss,
 
-                                "train/aux_loss": avg_aux_loss,
+                            "train/learning_rate": lr,
 
-                                "train/learning_rate": lr,
+                            "train/grad_norm": grad_norm,
 
-                                "train/grad_norm": grad_norm,
+                            "train/tokens_per_sec": tokens_per_sec,
 
-                                "train/tokens_per_sec": tokens_per_sec,
+                        }
 
-                            },
+                        for k, v in router_metrics.items():
 
-                            step=self.global_step,
+                            if torch.is_tensor(v):
 
-                        )
+                                log_data[k] = v.item()
+
+                            else:
+
+                                log_data[k] = v
+
+                        wandb.log(log_data, step=self.global_step)
 
 
 
@@ -553,6 +579,10 @@ class MoRTrainer:
                     self.model.train()
 
 
+
+                if self.save_steps and self.global_step in self.save_steps:
+
+                    self.save_checkpoint()
 
                 if self.global_step % self.config.save_interval == 0:
 
@@ -664,7 +694,7 @@ class MoRTrainer:
 
 
 
-    def load_checkpoint(self, path: str):
+    def load_checkpoint(self, path: str, load_optimizer: bool = True, load_scheduler: bool = True, load_scaler: bool = True):
 
         checkpoint = torch.load(path, map_location=self.device)
 
@@ -672,21 +702,28 @@ class MoRTrainer:
 
         self.model.load_state_dict(checkpoint["model_state_dict"])
 
-        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        if load_optimizer and "optimizer_state_dict" in checkpoint:
 
-        self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+            self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
-        self.global_step = checkpoint["global_step"]
+        if load_scheduler and "scheduler_state_dict" in checkpoint:
 
-        self.epoch = checkpoint["epoch"]
+            self.scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
+
+        if "global_step" in checkpoint:
+
+            self.global_step = checkpoint["global_step"]
+
+        if "epoch" in checkpoint:
+
+            self.epoch = checkpoint["epoch"]
 
 
 
-        if self.scaler is not None and "scaler_state_dict" in checkpoint:
+        if load_scaler and self.scaler is not None and "scaler_state_dict" in checkpoint:
 
             self.scaler.load_state_dict(checkpoint["scaler_state_dict"])
 
 
 
         print(f"Loaded checkpoint from {path}")
-

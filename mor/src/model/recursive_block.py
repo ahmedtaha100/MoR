@@ -96,6 +96,24 @@ class RecursiveBlock(nn.Module):
 
 
 
+    def _get_layer_indices(self, recursion_step: int) -> List[int]:
+
+        d = self.config.num_shared_layers
+
+        n = self.config.num_recursion_steps
+
+        strategy = self.config.sharing_strategy
+
+        if strategy == "sequence" or strategy == "middle_sequence":
+
+            base = recursion_step * d
+
+            return [(base + i) // n for i in range(d)]
+
+        return list(range(d))
+
+
+
     def forward(
 
         self,
@@ -306,6 +324,8 @@ class RecursiveBlock(nn.Module):
 
 
 
+            layer_indices = self._get_layer_indices(r)
+
             block_output, attentions, key_values, computed_kvs = self.shared_block(
 
                 hidden_states=hidden_states,
@@ -335,6 +355,7 @@ class RecursiveBlock(nn.Module):
                 create_cache_fn=create_selective_cache if use_selective and kv_cache is None else None,
 
                 shared_kvs=shared_kvs_for_block,
+                layer_indices=layer_indices,
 
             )
 
@@ -594,6 +615,8 @@ class RecursiveBlock(nn.Module):
 
 
 
+            layer_indices = self._get_layer_indices(r)
+
             block_output, attentions, key_values, computed_kvs = self.shared_block(
 
                 hidden_states=hidden_states,
@@ -623,6 +646,7 @@ class RecursiveBlock(nn.Module):
                 create_cache_fn=create_selective_cache if use_selective and kv_cache is None else None,
 
                 shared_kvs=shared_kvs_for_block,
+                layer_indices=layer_indices,
 
             )
 
@@ -743,4 +767,3 @@ class RecursiveBlock(nn.Module):
 
 
             return depths
-

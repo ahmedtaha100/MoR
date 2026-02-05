@@ -34,9 +34,11 @@ def parse_args():
     parser.add_argument("--log_interval", type=int, default=None)
     parser.add_argument("--eval_interval", type=int, default=None)
     parser.add_argument("--save_interval", type=int, default=None)
+    parser.add_argument("--save_steps", type=str, default=None)
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--wandb_project", type=str, default=None)
     parser.add_argument("--wandb_run_name", type=str, default=None)
+    parser.add_argument("--resume_from_checkpoint", type=str, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--dataset_name", type=str, default=None)
     parser.add_argument("--dataset_config", type=str, default=None)
@@ -84,6 +86,7 @@ def get_training_config(args, config_dict) -> TrainingConfig:
         "log_interval",
         "eval_interval",
         "save_interval",
+        "resume_from_checkpoint",
         "output_dir",
         "wandb_project",
         "wandb_run_name",
@@ -91,6 +94,8 @@ def get_training_config(args, config_dict) -> TrainingConfig:
         val = getattr(args, name)
         if val is not None:
             setattr(cfg, name, val)
+    if args.save_steps:
+        cfg.save_steps = [int(x) for x in args.save_steps.split(",") if x.strip()]
     return cfg
 
 

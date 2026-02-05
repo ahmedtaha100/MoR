@@ -1,6 +1,6 @@
 import math
 
-from typing import Optional, Tuple, Literal
+from typing import Optional, Tuple, Literal, Dict, List
 
 
 
@@ -74,9 +74,53 @@ class ExpertChoiceRouter(nn.Module):
 
 
 
+        self.aux_mode = config.expert_choice_aux_mode
+
+        self.use_aux_router = self.aux_mode == "aux_router"
+
+        if self.use_aux_router:
+
+            if config.router_architecture == "linear":
+
+                self.aux_router = nn.Linear(config.hidden_dim, 1, bias=False)
+
+            elif config.router_architecture == "mlp":
+
+                self.aux_router = nn.Sequential(
+
+                    nn.Linear(config.hidden_dim, config.hidden_dim // 4),
+
+                    nn.GELU(),
+
+                    nn.Linear(config.hidden_dim // 4, 1),
+
+                )
+
+            elif config.router_architecture == "wide_mlp":
+
+                self.aux_router = nn.Sequential(
+
+                    nn.Linear(config.hidden_dim, config.hidden_dim),
+
+                    nn.GELU(),
+
+                    nn.Linear(config.hidden_dim, 1),
+
+                )
+
+        else:
+
+            self.aux_router = None
+
+
+
         self.activation = config.router_activation
 
         self._current_step = 0
+
+        self.last_aux_scores = None
+
+        self.last_aux_selected_mask = None
 
 
 
@@ -134,15 +178,45 @@ class ExpertChoiceRouter(nn.Module):
 
 
 
+        aux_logits = None
+
+        aux_scores = None
+
+        if self.use_aux_router:
+
+            aux_input = hidden_states.detach() if self.training else hidden_states
+
+            aux_logits = self.aux_router(aux_input).squeeze(-1)
+
+            aux_scaled = aux_logits * self.router_alpha
+
+            if self.activation == "sigmoid":
+
+                aux_scores = torch.sigmoid(aux_scaled)
+
+            elif self.activation == "tanh":
+
+                aux_scores = (torch.tanh(aux_scaled) + 1) / 2
+
+            else:
+
+                aux_scores = torch.sigmoid(aux_scaled)
+
+
+
+        scores_for_selection = aux_scores if (self.use_aux_router and not self.training) else router_scores
+
+
+
         if active_mask is not None:
 
-            masked_scores = router_scores.clone()
+            masked_scores = scores_for_selection.clone()
 
             masked_scores[~active_mask] = float("-inf")
 
         else:
 
-            masked_scores = router_scores
+            masked_scores = scores_for_selection
 
             active_mask = torch.ones(batch_size, seq_len, dtype=torch.bool, device=hidden_states.device)
 
@@ -186,7 +260,55 @@ class ExpertChoiceRouter(nn.Module):
 
 
 
-        router_weights = router_scores * selected_mask.float()
+        aux_selected_mask = None
+
+        if aux_scores is not None:
+
+            if active_mask is not None:
+
+                aux_masked_scores = aux_scores.clone()
+
+                aux_masked_scores[~active_mask] = float("-inf")
+
+            else:
+
+                aux_masked_scores = aux_scores
+
+            aux_selected_mask = torch.zeros_like(router_scores, dtype=torch.bool)
+
+            for b in range(batch_size):
+
+                num_active_b = int(num_active[b].item())
+
+                if num_active_b == 0:
+
+                    continue
+
+                k = int(k_per_batch[b].item())
+
+                if k < 1:
+
+                    k = 1
+
+                if k > num_active_b:
+
+                    k = num_active_b
+
+                batch_scores = aux_masked_scores[b]
+
+                _, top_indices = torch.topk(batch_scores, k=k)
+
+                aux_selected_mask[b, top_indices] = True
+
+
+
+        self.last_aux_scores = aux_scores
+
+        self.last_aux_selected_mask = aux_selected_mask
+
+
+
+        router_weights = scores_for_selection * selected_mask.float()
 
 
 
@@ -196,33 +318,41 @@ class ExpertChoiceRouter(nn.Module):
 
             targets = selected_mask.float()
 
+            aux_logits_target = None
 
+            if self.aux_mode == "loss":
 
-            if active_mask is not None:
+                aux_logits_target = router_logits
 
-                active_logits = router_logits[active_mask]
+            elif self.aux_mode == "aux_router":
 
-                active_targets = targets[active_mask]
+                aux_logits_target = aux_logits
 
-            else:
+            if aux_logits_target is not None:
 
-                active_logits = router_logits.view(-1)
+                if active_mask is not None:
 
-                active_targets = targets.view(-1)
+                    active_logits = aux_logits_target[active_mask]
 
+                    active_targets = targets[active_mask]
 
+                else:
 
-            if active_logits.numel() > 0:
+                    active_logits = aux_logits_target.view(-1)
 
-                bce_loss = F.binary_cross_entropy_with_logits(
+                    active_targets = targets.view(-1)
 
-                    active_logits, active_targets, reduction="mean"
+                if active_logits.numel() > 0:
 
-                )
+                    bce_loss = F.binary_cross_entropy_with_logits(
 
-                z_loss = compute_router_z_loss(router_logits)
+                        active_logits, active_targets, reduction="mean"
 
-                aux_loss = bce_loss + self.z_loss_coeff * z_loss
+                    )
+
+                    z_loss = compute_router_z_loss(aux_logits_target)
+
+                    aux_loss = bce_loss + self.z_loss_coeff * z_loss
 
 
 
@@ -244,15 +374,15 @@ class ExpertChoiceRouter(nn.Module):
 
         batch_size, seq_len, _ = hidden_states.shape
 
+        if self.use_aux_router:
 
+            router_logits = self.aux_router(hidden_states).squeeze(-1)
 
-        router_logits = self.router(hidden_states).squeeze(-1)
+        else:
 
-
+            router_logits = self.router(hidden_states).squeeze(-1)
 
         scaled_logits = router_logits * self.router_alpha
-
-
 
         if self.activation == "sigmoid":
 
@@ -266,21 +396,49 @@ class ExpertChoiceRouter(nn.Module):
 
             router_scores = torch.sigmoid(scaled_logits)
 
-
-
-        selected_mask = router_scores > threshold
-
-
-
         if active_mask is not None:
 
-            selected_mask = selected_mask & active_mask
+            masked_scores = router_scores.clone()
 
+            masked_scores[~active_mask] = float("-inf")
 
+        else:
+
+            masked_scores = router_scores
+
+            active_mask = torch.ones(batch_size, seq_len, dtype=torch.bool, device=hidden_states.device)
+
+        num_active = active_mask.sum(dim=-1)
+
+        k_per_batch = self.capacity * num_active
+
+        selected_mask = torch.zeros_like(router_scores, dtype=torch.bool)
+
+        for b in range(batch_size):
+
+            num_active_b = int(num_active[b].item())
+
+            if num_active_b == 0:
+
+                continue
+
+            k = int(k_per_batch[b].item())
+
+            if k < 1:
+
+                k = 1
+
+            if k > num_active_b:
+
+                k = num_active_b
+
+            batch_scores = masked_scores[b]
+
+            _, top_indices = torch.topk(batch_scores, k=k)
+
+            selected_mask[b, top_indices] = True
 
         router_weights = router_scores * selected_mask.float()
-
-
 
         return router_weights, selected_mask
 
@@ -301,6 +459,10 @@ class TokenChoiceRouter(nn.Module):
         self.router_alpha = config.router_alpha
 
         self.z_loss_coeff = config.router_z_loss_coeff
+
+        self.balance_mode = config.token_choice_balance_mode
+
+        self.bias_update_rate = config.token_choice_bias_update_rate
 
 
 
@@ -334,9 +496,9 @@ class TokenChoiceRouter(nn.Module):
 
 
 
-        self.expert_bias = nn.Parameter(torch.zeros(self.num_recursions))
+        self.expert_bias = nn.Parameter(torch.zeros(self.num_recursions), requires_grad=False)
 
-        self.use_bias_balancing = False
+        self.use_bias_balancing = self.balance_mode == "loss_free"
 
 
 
@@ -396,6 +558,26 @@ class TokenChoiceRouter(nn.Module):
 
 
 
+        if self.training and self.use_bias_balancing and self.bias_update_rate > 0:
+
+            with torch.no_grad():
+
+                flat_assigned = assigned_depth.view(-1)
+
+                one_hot = F.one_hot(flat_assigned, num_classes=self.num_recursions).float()
+
+                counts = one_hot.sum(dim=0)
+
+                avg = counts.mean()
+
+                error = avg - counts
+
+                update = self.bias_update_rate * torch.sign(error)
+
+                self.expert_bias.add_(update)
+
+
+
         depth_mask = torch.zeros_like(router_logits, dtype=torch.bool)
 
         depth_mask.scatter_(-1, assigned_depth.unsqueeze(-1), True)
@@ -408,7 +590,7 @@ class TokenChoiceRouter(nn.Module):
 
         aux_loss = None
 
-        if return_aux_loss and self.training:
+        if return_aux_loss and self.training and self.balance_mode == "loss":
 
             balance_loss = self._compute_balancing_loss(router_probs, assigned_depth)
 
@@ -560,15 +742,7 @@ class MoRRouter(nn.Module):
 
 
 
-        if is_training:
-
-            return router(hidden_states, active_mask, return_aux_loss=True)
-
-        else:
-
-            weights, mask = router.forward_inference(hidden_states, active_mask)
-
-            return weights, mask, None
+        return router(hidden_states, active_mask, return_aux_loss=is_training)
 
 
 
@@ -581,6 +755,78 @@ class MoRRouter(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
 
         return self.router(hidden_states, return_aux_loss=True)
+
+
+
+    def compute_metrics(self, routing_info: Dict) -> Dict[str, torch.Tensor]:
+
+        if routing_info is None:
+
+            return {}
+
+        if self.router_type == "expert_choice":
+
+            selected_masks = routing_info.get("selected_masks")
+
+            if not selected_masks:
+
+                return {}
+
+            total = selected_masks[0].numel()
+
+            if total > 0:
+
+                dead_ratio = 1.0 - selected_masks[-1].float().sum() / total
+
+            else:
+
+                dead_ratio = torch.tensor(0.0, device=selected_masks[0].device)
+
+            metrics = {"router/dead_token_ratio": dead_ratio}
+
+            accs = []
+
+            for i, mask in enumerate(selected_masks):
+
+                if i < len(self.routers):
+
+                    aux_mask = self.routers[i].last_aux_selected_mask
+
+                    if aux_mask is not None and aux_mask.shape == mask.shape:
+
+                        accs.append((aux_mask == mask).float().mean())
+
+            if accs:
+
+                metrics["router/sampling_accuracy"] = torch.stack(accs).mean()
+
+            return metrics
+
+        else:
+
+            depth_mask = routing_info.get("depth_mask")
+
+            if depth_mask is None:
+
+                return {}
+
+            counts = depth_mask.float().sum(dim=(0, 1))
+
+            total = counts.sum()
+
+            if total > 0:
+
+                frac = counts / total
+
+                target = 1.0 / self.config.num_recursion_steps
+
+                max_vio = (frac - target).abs().max()
+
+            else:
+
+                max_vio = torch.tensor(0.0, device=depth_mask.device)
+
+            return {"router/max_vio": max_vio}
 
 
 
@@ -605,4 +851,3 @@ class MoRRouter(nn.Module):
         total_loss = sum(valid_losses) / len(valid_losses)
 
         return self.aux_loss_coeff * total_loss
-

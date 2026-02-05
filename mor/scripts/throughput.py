@@ -24,6 +24,7 @@ def parse_args():
     parser.add_argument("--mean_len", type=float, default=256.0)
     parser.add_argument("--std_len", type=float, default=32.0)
     parser.add_argument("--device", type=str, default=None)
+    parser.add_argument("--track_depth", action="store_true")
     return parser.parse_args()
 
 
@@ -65,6 +66,7 @@ def main():
         mean_len=args.mean_len,
         std_len=args.std_len,
         device=device,
+        track_depth=args.track_depth,
     )
     print(json.dumps(result, indent=2))
 

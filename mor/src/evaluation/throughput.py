@@ -24,6 +24,7 @@ def run_throughput(
     std_len: float = 32.0,
     device: str = None,
     prompts=None,
+    track_depth: bool = False,
 ):
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
@@ -39,6 +40,7 @@ def run_throughput(
     queue = deque(range(num_queries))
     active = []
     total_tokens = 0
+    total_depth = 0
     max_len = getattr(model.config, "max_seq_len", 2048)
     start_time = time.time()
     while queue or active:
@@ -65,8 +67,14 @@ def run_throughput(
             input_ids[i, :len(s)] = torch.tensor(s, dtype=torch.long, device=device)
             attention_mask[i, :len(s)] = 1
         with torch.no_grad():
-            outputs = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False)
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask, use_cache=False, return_dict=True)
         logits = outputs.logits
+        if track_depth and hasattr(outputs, "routing_info") and outputs.routing_info is not None:
+            if hasattr(model, "model") and hasattr(model.model, "recursive_block"):
+                depths = model.model.recursive_block.get_recursion_depth_per_token(outputs.routing_info)
+                if depths is not None:
+                    depth_last = depths[:, -1]
+                    total_depth += depth_last.sum().item()
         next_tokens = torch.argmax(logits[:, -1, :], dim=-1).tolist()
         for q, tok in zip(active, next_tokens):
             q["tokens"].append(tok)
@@ -75,4 +83,11 @@ def run_throughput(
         active = [q for q in active if q["generated"] < q["target"]]
     elapsed = time.time() - start_time
     tps = total_tokens / max(elapsed, 1e-8)
-    return {"tokens_per_sec": tps, "total_tokens": total_tokens, "elapsed_sec": elapsed}
+    result = {"tokens_per_sec": tps, "total_tokens": total_tokens, "elapsed_sec": elapsed}
+    if track_depth and total_tokens > 0:
+        avg_depth = total_depth / total_tokens
+        depth_units = total_depth / max(batch_size, 1)
+        depthwise_tokens_per_unit = total_tokens / max(depth_units, 1e-8)
+        result["avg_recursion_depth"] = avg_depth
+        result["depthwise_tokens_per_unit"] = depthwise_tokens_per_unit
+    return result

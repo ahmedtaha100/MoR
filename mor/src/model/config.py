@@ -23,6 +23,9 @@ class MoRConfig:
     router_activation: Literal["sigmoid", "tanh", "softmax"] = "sigmoid"
     router_architecture: Literal["linear", "mlp", "wide_mlp"] = "linear"
     router_alpha: float = 1.0
+    expert_choice_aux_mode: Literal["loss", "aux_router", "none"] = "loss"
+    token_choice_balance_mode: Literal["loss", "loss_free", "none"] = "loss"
+    token_choice_bias_update_rate: float = 0.01
     capacity_warmup_steps: int = 0
     kv_cache_strategy: Literal["selective", "shared"] = "selective"
     sharing_strategy: Literal["middle_cycle", "cycle", "sequence", "middle_sequence"] = "middle_cycle"
