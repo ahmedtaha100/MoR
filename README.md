@@ -188,9 +188,16 @@ python -m pytest tests/test_router.py -v
 - [GLU Variants Improve Transformer](https://arxiv.org/abs/2002.05202) (SwiGLU)
 - [RoFormer](https://arxiv.org/abs/2104.09864) (RoPE)
 
+## Related Work
+
+- **[Relaxed Recursive Transformers (JAX/Flax)](https://github.com/ahmedtaha100/RRT)** — JAX implementation of the ICLR 2025 predecessor paper (Bae et al., Google DeepMind)
+- **[Original Paper](https://arxiv.org/abs/2507.10524)** — Mixture-of-Recursions (NeurIPS 2025)
+- **[Relaxed Recursive Transformers Paper](https://arxiv.org/abs/2410.20672)** — The foundational work this builds on (ICLR 2025)
+
+
 ## Author
 
-Ahmed Taha | [ahmedtaha.io](https://ahmedtaha.io)
+**Ahmed Taha** | [ahmedtaha.io](https://ahmedtaha.io) | MS Computer Science (ML), Columbia University
 
 ## License
 
